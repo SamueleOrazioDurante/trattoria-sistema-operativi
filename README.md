@@ -23,6 +23,7 @@ Persona 3
 
 - strategies.c
   1- logica di gestione dei compiti
+  2- osservazioni delle famiglie
 
 ## Relazione
 
