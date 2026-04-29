@@ -1,3 +1,4 @@
+#include "ipc_manager.h"
 #include "server_comm.h"
 #include "scenario.h"
 #include <stdio.h>
@@ -49,8 +50,8 @@ int main(int argc, char *argv[]) {
 
     printf("[CLIENT] Starting Trattoria Client...\n");
 
-    // Initialize communication (connect to message queues)
-    server_comm_init();
+    // Initialize all IPC resources (queues, SHM, semaphores)
+    ipc_init();
 
     // Protocol flow
     server_comm_hello(matricole, chosen_strategy);
@@ -60,7 +61,7 @@ int main(int argc, char *argv[]) {
     server_comm_instance_loop();
 
     // Cleanup
-    server_comm_cleanup();
+    ipc_cleanup();
 
     printf("[CLIENT] Exiting normally.\n");
     return EXIT_SUCCESS;

@@ -1,4 +1,5 @@
 #include "server_comm.h"
+#include "ipc_manager.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -7,39 +8,7 @@
 #include <sys/msg.h>
 #include <errno.h>
 
-static int q_c2s = -1;
-static int q_s2c = -1;
-static int q_fatigue = -1;
-
 static msg_welcome_t welcome_info;
-
-void server_comm_init() {
-    key_t key;
-
-    // Ensure the ftok path exists (minimal check/creation)
-    FILE *f = fopen(TRATTORIA_FTOK_PATH, "a");
-    if (f) fclose(f);
-
-    key = ftok(TRATTORIA_FTOK_PATH, PROJ_MSG_C2S);
-    if ((q_c2s = msgget(key, 0666)) == -1) {
-        perror("msgget C2S");
-        exit(EXIT_FAILURE);
-    }
-
-    key = ftok(TRATTORIA_FTOK_PATH, PROJ_MSG_S2C);
-    if ((q_s2c = msgget(key, 0666)) == -1) {
-        perror("msgget S2C");
-        exit(EXIT_FAILURE);
-    }
-
-    key = ftok(TRATTORIA_FTOK_PATH, PROJ_MSG_FATIGUE);
-    if ((q_fatigue = msgget(key, 0666)) == -1) {
-        perror("msgget FATIGUE");
-        exit(EXIT_FAILURE);
-    }
-
-    printf("[COMM] Connected to message queues.\n");
-}
 
 void server_comm_hello(char matricole[STUDENTID_MAX][STUDENTID_MAXLEN], strategy_t strategy) {
     msg_hello_t hello;
@@ -157,8 +126,4 @@ void server_comm_instance_loop() {
             exit(EXIT_FAILURE);
         }
     }
-}
-
-void server_comm_cleanup() {
-    printf("[COMM] Cleaning up communication module.\n");
 }
