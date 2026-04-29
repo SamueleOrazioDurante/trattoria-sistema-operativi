@@ -92,6 +92,62 @@ src/
    - Dopo ordine → osservare `food_qty` per stimare carico cucina
    - Dopo consumo → osservare `dirt_level` per pianificare pulizia
 
+## Guida alla compilazione
+
+Il progetto utilizza **CMake**. Segui questi passaggi per compilare il client:
+
+1. **Crea una directory per la build:**
+
+   ```bash
+   mkdir build
+   cd build
+   ```
+
+2. **Genera i file di build:**
+
+   ```bash
+   cmake ..
+   ```
+
+3. **Compila il progetto:**
+   ```bash
+   make
+   ```
+
+L'eseguibile generato si chiamerà `trattoria_client`.
+
+---
+
+## Come eseguire
+
+Per testare il client, è necessario avere il server fornito dal docente in esecuzione.
+
+1. **Avvia il server** (in un terminale separato):
+
+   ```bash
+   ./trattoria_server_Linux --speed 2
+   ```
+
+2. **Avvia il client:**
+   ```bash
+   ./trattoria_client --strategy profit
+   ```
+
+### Modalità Verifica
+
+Per eseguire il test automatico su 100 istanze:
+
+1. Avvia il server con il flag `--verify`:
+   ```bash
+   ./trattoria_server_Linux --verify
+   ```
+2. Avvia il client (la strategia verrà ignorata e gestita dal server):
+   ```bash
+   ./trattoria_client
+   ```
+
+---
+
 ## Relazione
 
 1. Descrizione delle caratteristiche del personale ottenuto;
