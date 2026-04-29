@@ -4,7 +4,7 @@
 
 ```
 src/
-├── main.c              ← entry point, parsing argomenti CLI, ciclo istanze
+├── trattoria_client.c  ← entry point, parsing argomenti CLI, ciclo istanze
 ├── server_comm.c/.h    ← protocollo messaggi col server (hello, welcome, instance, end)
 ├── ipc_manager.c/.h    ← attach/detach SHM, semafori, code messaggi
 ├── worker.c/.h         ← logica del thread per ogni membro del personale
@@ -18,7 +18,7 @@ src/
 
 ### Persona 1 — Infrastruttura & Protocollo
 
-#### `main.c`
+#### `trattoria_client.c`
 
 1. Parsing argomenti CLI (`--strategy <profit|reputation>`)
 2. Entry point del programma
