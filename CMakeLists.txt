@@ -6,7 +6,7 @@ set(CMAKE_C_STANDARD_REQUIRED ON)
 
 include_directories(SYSTEM ${PROJECT_SOURCE_DIR}/include)
 
-add_executable(trattoria_client src/trattoria_client.c)
+add_executable(trattoria_client src/trattoria_client.c src/server_comm.c)
 
 target_link_libraries(trattoria_client PRIVATE pthread)
 
