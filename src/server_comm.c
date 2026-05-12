@@ -40,7 +40,7 @@ void server_comm_hello(char matricole[STUDENTID_MAX][STUDENTID_MAXLEN], strategy
         exit(EXIT_FAILURE);
     }
 
-    printf("[COMM] Sent HELLO message (Strategy: %d).\n", strategy);
+    printf("[COMM] Inviato messaggio HELLO (Strategia: %d).\n", strategy);
 }
 
 void server_comm_wait_welcome() {
@@ -49,24 +49,24 @@ void server_comm_wait_welcome() {
         exit(EXIT_FAILURE);
     }
 
-    printf("[COMM] Received WELCOME. Group: %s, Staff: %d, Tables: %d\n", 
+    printf("[COMM] Ricevuto WELCOME. Gruppo: %s, Staff: %d, Tavoli: %d\n", 
            welcome_info.group, welcome_info.staff_n, welcome_info.tables_n);
     
     const char* bucket_names[] = {"LOW", "MEDIUM", "HIGH"};
-    const char* skill_names[] = {"Waiter", "Cook", "Helper", "Cashier"};
-    const char* trait_names[] = {"Patience", "Sociability", "Professionality", "Resistance"};
+    const char* skill_names[] = {"Cameriere", "Cuoco", "Aiutante", "Cassiere"};
+    const char* trait_names[] = {"Pazienza", "Socievolezza", "Professionalità", "Resistenza"};
 
     for (int i = 0; i < welcome_info.staff_n; i++) {
         staff_member_t *s = &welcome_info.staff[i];
         printf("  Staff #%d: %s\n", i, s->name);
         
-        printf("    Skills: ");
+        printf("    Abilità: ");
         for (int j = 0; j < NUM_SKILLS; j++) {
             printf("%s=%s%s", skill_names[j], bucket_names[s->skills[j]], (j < NUM_SKILLS - 1) ? ", " : "");
         }
         printf("\n");
 
-        printf("    Traits: ");
+        printf("    Tratti: ");
         for (int j = 0; j < NUM_TRAITS; j++) {
             printf("%s=%s%s", trait_names[j], bucket_names[s->traits[j]], (j < NUM_TRAITS - 1) ? ", " : "");
         }
@@ -74,20 +74,20 @@ void server_comm_wait_welcome() {
     }
     
     if (welcome_info.verify_mode) {
-        printf("[COMM] Running in VERIFY mode. Strategy imposed: %d\n", welcome_info.imposed_strategy);
+        printf("[COMM] Esecuzione in modalità VERIFY. Strategia imposta: %d\n", welcome_info.imposed_strategy);
     }
 }
 
 void server_comm_instance_loop() {
     while (1) {
-        // We need a union or a generic buffer to receive different message types from S2C
+        // Unione o buffer generico per ricevere diversi tipi di messaggi da S2C
         union {
             long mtype;
             msg_instance_t instance;
             msg_end_t end;
         } msg;
 
-        printf("[COMM] Waiting for next command from server...\n");
+        printf("[COMM] In attesa del prossimo comando dal server...\n");
 
         if (msgrcv(q_s2c, &msg, sizeof(msg_instance_t) - sizeof(long), 0, 0) == -1) {
             perror("msgrcv instance/end");
@@ -96,16 +96,16 @@ void server_comm_instance_loop() {
 
         if (msg.mtype == MSGTYPE_END) {
             msg_end_t *end = (msg_end_t *)&msg;
-            printf("[COMM] Received END message. Reason: %d. Terminating.\n", end->reason);
+            printf("[COMM] Ricevuto messaggio END. Motivo: %d. Terminazione.\n", end->reason);
             break;
         }
 
         if (msg.mtype == MSGTYPE_INSTANCE) {
             msg_instance_t *inst = (msg_instance_t *)&msg;
-            printf("[COMM] Starting Instance %d (Speed: %d, Strategy: %d, Families: %d)\n",
+            printf("[COMM] Avvio Istanza %d (Velocità: %d, Strategia: %d, Famiglie: %d)\n",
                    inst->instance_id, inst->speed, inst->strategy, inst->families_n);
 
-            // --- Start worker threads ---
+            // --- Avvio dei thread worker ---
             pthread_t threads[MAX_STAFF];
             worker_args_t wargs[MAX_STAFF];
 
@@ -123,25 +123,25 @@ void server_comm_instance_loop() {
                 }
             }
 
-            // Wait for INSTANCE_DONE from the server
+            // Attesa di INSTANCE_DONE dal server
             msg_instance_done_t done;
             if (msgrcv(q_s2c, &done, sizeof(done) - sizeof(long), MSGTYPE_INSTANCE_DONE, 0) == -1) {
                 perror("msgrcv INSTANCE_DONE");
                 exit(EXIT_FAILURE);
             }
 
-            printf("[COMM] Instance %d completed.\n", done.instance_id);
-            printf("[COMM] Metrics - Total Time: %.2f, Avg Score: %s\n", 
+            printf("[COMM] Istanza %d completata.\n", done.instance_id);
+            printf("[COMM] Metriche - Tempo Totale: %.2f, Punteggio Medio: %s\n", 
                    done.total_families_time, done.average_families_score_review);
 
-            // --- Stop and join worker threads ---
+            // --- Ferma e attendi i thread worker ---
             worker_stop_instance();
 
             for (int i = 0; i < welcome_info.staff_n; i++) {
                 pthread_join(threads[i], NULL);
             }
 
-            // --- Reset blackboard for next instance ---
+            // --- Resetta la lavagna (blackboard) per la prossima istanza ---
             struct sembuf lock  = { .sem_num = SEMIDX_BLACKBOARD, .sem_op = -1, .sem_flg = 0 };
             struct sembuf unlock = { .sem_num = SEMIDX_BLACKBOARD, .sem_op =  1, .sem_flg = 0 };
             semop(sem_id, &lock, 1);
@@ -154,10 +154,10 @@ void server_comm_instance_loop() {
             shm_blackboard->dishwasher = -1;
             semop(sem_id, &unlock, 1);
 
-            printf("[COMM] Worker threads joined and blackboard reset.\n");
+            printf("[COMM] Thread worker terminati e lavagna resettata.\n");
         } else if (msg.mtype == MSGTYPE_ERROR) {
             msg_error_t *err = (msg_error_t *)&msg;
-            fprintf(stderr, "[ERROR] Server returned error %d: %s\n", err->code, err->message);
+            fprintf(stderr, "[ERROR] Il server ha restituito l'errore %d: %s\n", err->code, err->message);
             exit(EXIT_FAILURE);
         }
     }

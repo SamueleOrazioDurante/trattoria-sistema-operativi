@@ -6,7 +6,7 @@
 #include <sys/msg.h>
 #include <errno.h>
 
-// Initialize global pointers
+// Inizializzazione dei puntatori globali
 shm_diningroom_t *shm_diningroom = NULL;
 shm_kitchen_t    *shm_kitchen = NULL;
 shm_blackboard_t *shm_blackboard = NULL;
@@ -25,7 +25,7 @@ static int shm_cashdesk_id = -1;
 void ipc_init() {
     key_t key;
 
-    // -- MESSAGE QUEUES
+    // -- CODE DI MESSAGGI
     key = ftok(TRATTORIA_FTOK_PATH, PROJ_MSG_C2S);
     if ((q_c2s = msgget(key, 0666)) == -1) { perror("msgget C2S"); exit(EXIT_FAILURE); }
 
@@ -35,32 +35,32 @@ void ipc_init() {
     key = ftok(TRATTORIA_FTOK_PATH, PROJ_MSG_FATIGUE);
     if ((q_fatigue = msgget(key, 0666)) == -1) { perror("msgget FATIGUE"); exit(EXIT_FAILURE); }
 
-    // -- SEMAPHORES
+    // -- SEMAFORI
     key = ftok(TRATTORIA_FTOK_PATH, PROJ_SEM);
     if ((sem_id = semget(key, SEM_NSEMS, 0666)) == -1) { perror("semget"); exit(EXIT_FAILURE); }
 
-    // -- SHARED MEMORIES
-    // Dining Room
+    // -- MEMORIE CONDIVISE
+    // Sala da pranzo (Dining Room)
     key = ftok(TRATTORIA_FTOK_PATH, PROJ_DININGROOM);
     if ((shm_diningroom_id = shmget(key, sizeof(shm_diningroom_t), 0666)) == -1) { perror("shmget DiningRoom"); exit(EXIT_FAILURE); }
     if ((shm_diningroom = shmat(shm_diningroom_id, NULL, 0)) == (void*)-1) { perror("shmat DiningRoom"); exit(EXIT_FAILURE); }
 
-    // Kitchen
+    // Cucina (Kitchen)
     key = ftok(TRATTORIA_FTOK_PATH, PROJ_KITCHEN);
     if ((shm_kitchen_id = shmget(key, sizeof(shm_kitchen_t), 0666)) == -1) { perror("shmget Kitchen"); exit(EXIT_FAILURE); }
     if ((shm_kitchen = shmat(shm_kitchen_id, NULL, 0)) == (void*)-1) { perror("shmat Kitchen"); exit(EXIT_FAILURE); }
 
-    // Blackboard
+    // Lavagna (Blackboard)
     key = ftok(TRATTORIA_FTOK_PATH, PROJ_BLACKBOARD);
     if ((shm_blackboard_id = shmget(key, sizeof(shm_blackboard_t), 0666)) == -1) { perror("shmget Blackboard"); exit(EXIT_FAILURE); }
     if ((shm_blackboard = shmat(shm_blackboard_id, NULL, 0)) == (void*)-1) { perror("shmat Blackboard"); exit(EXIT_FAILURE); }
 
-    // Cash Desk
+    // Cassa (Cash Desk)
     key = ftok(TRATTORIA_FTOK_PATH, PROJ_CASHDESK);
     if ((shm_cashdesk_id = shmget(key, sizeof(shm_cashdesk_t), 0666)) == -1) { perror("shmget CashDesk"); exit(EXIT_FAILURE); }
     if ((shm_cashdesk = shmat(shm_cashdesk_id, NULL, 0)) == (void*)-1) { perror("shmat CashDesk"); exit(EXIT_FAILURE); }
 
-    printf("[IPC] All resources initialized and attached.\n");
+    printf("[IPC] Tutte le risorse inizializzate e collegate.\n");
 }
 
 void ipc_cleanup() {
@@ -69,5 +69,5 @@ void ipc_cleanup() {
     if (shm_blackboard)  shmdt(shm_blackboard);
     if (shm_cashdesk)    shmdt(shm_cashdesk);
     
-    printf("[IPC] All shared memories detached.\n");
+    printf("[IPC] Tutte le memorie condivise scollegate.\n");
 }

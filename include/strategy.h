@@ -5,9 +5,9 @@
 #include "ipc.h"
 
 /**
- * Snapshot of the current state of the restaurant.
- * This structure aggregates the state from the shared memories and 
- * the local client-tracked state (like fatigue).
+ * Istantanea (snapshot) dello stato attuale del ristorante.
+ * Questa struttura aggrega lo stato delle memorie condivise e lo stato
+ * tracciato localmente dal client (come la stanchezza).
  */
 typedef struct {
     const shm_diningroom_t *diningroom;
@@ -15,19 +15,20 @@ typedef struct {
     const shm_blackboard_t *blackboard;
     const shm_cashdesk_t *cashdesk;
     
-    // Array of fatigue levels for each staff member, tracked by the client via MSGTYPE_FATIGUE
+    // Array dei livelli di stanchezza per ciascun membro dello staff, 
+    // tracciati dal client tramite MSGTYPE_FATIGUE
     level_t staff_fatigue[MAX_STAFF];
 } snapshot_t;
 
 /**
- * Decides the optimal role for a staff member based on the chosen strategy.
+ * Decide il ruolo ottimale per un membro dello staff in base alla strategia scelta.
  * 
- * @param staff_id The ID of the staff member to decide the role for.
- * @param strategy The current strategy (STRATEGY_PROFIT or STRATEGY_REPUTATION).
- * @param snapshot The current state of the restaurant and fatigue levels.
- * @param staff_info Array containing the parameters (skills and traits) of all staff members.
- * @param staff_n Number of staff members.
- * @return The optimal role_t for the staff member, or ROLE_NONE if resting/waiting.
+ * @param staff_id L'ID del membro dello staff per cui decidere il ruolo.
+ * @param strategy La strategia attuale (STRATEGY_PROFIT o STRATEGY_REPUTATION).
+ * @param snapshot Lo stato attuale del ristorante e i livelli di stanchezza.
+ * @param staff_info Array contenente i parametri (abilità e tratti) di tutti i membri dello staff.
+ * @param staff_n Numero di membri dello staff.
+ * @return Il ruolo ottimale (role_t) per il membro dello staff, o ROLE_NONE se riposa/attende.
  */
 role_t strategy_decide_role(int staff_id, strategy_t strategy, const snapshot_t *snapshot, const staff_member_t *staff_info, int staff_n);
 

@@ -5,40 +5,40 @@
 #include "ipc.h"
 
 /**
- * Arguments passed to each worker thread.
+ * Argomenti passati a ciascun thread worker.
  */
 typedef struct {
     int staff_id;
     strategy_t strategy;
-    const staff_member_t *staff_info;  // Array of all staff members
-    int staff_n;                       // Number of staff members
+    const staff_member_t *staff_info;  // Array di tutti i membri dello staff
+    int staff_n;                       // Numero di membri dello staff
 } worker_args_t;
 
 /**
- * @brief Set the instance-running flag to TR_TRUE.
- *        Must be called before creating worker threads.
+ * @brief Imposta il flag di esecuzione dell'istanza a TR_TRUE.
+ *        Deve essere chiamato prima di creare i thread worker.
  */
 void worker_start_instance(void);
 
 /**
- * @brief Set the instance-running flag to TR_FALSE.
- *        Signals all worker threads to exit their main loop.
+ * @brief Imposta il flag di esecuzione dell'istanza a TR_FALSE.
+ *        Segnala a tutti i thread worker di uscire dal loro loop principale.
  */
 void worker_stop_instance(void);
 
 /**
- * @brief Entry point for each worker pthread.
+ * @brief Entry point per ciascun thread worker (pthread).
  *
- * The worker loop:
- *   1. Reads fatigue from the fatigue message queue (msgrcv, non-blocking).
- *   2. Takes a snapshot of the current restaurant state.
- *   3. Calls strategy_decide_role() to pick the optimal role.
- *   4. Writes the assignment to the blackboard (protected by semaphore).
- *   5. Sleeps briefly to avoid CPU saturation.
+ * Il loop del worker:
+ *   1. Legge la stanchezza dalla coda dei messaggi di stanchezza (msgrcv, non bloccante).
+ *   2. Scatta una istantanea dello stato attuale del ristorante.
+ *   3. Chiama strategy_decide_role() per scegliere il ruolo ottimale.
+ *   4. Scrive l'assegnazione sulla lavagna (protetta da semaforo).
+ *   5. Dorme brevemente per evitare la saturazione della CPU.
  *
- * Exits when the instance-running flag is cleared.
+ * Esce quando il flag di esecuzione dell'istanza viene azzerato.
  *
- * @param arg  Pointer to a worker_args_t struct.
+ * @param arg  Puntatore a una struttura worker_args_t.
  * @return NULL
  */
 void *worker_thread(void *arg);

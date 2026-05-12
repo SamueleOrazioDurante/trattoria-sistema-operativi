@@ -3,25 +3,25 @@
 
 #include "ipc.h"
 
-// Global pointers to shared memories
+// Puntatori globali alle memorie condivise
 extern shm_diningroom_t *shm_diningroom;
 extern shm_kitchen_t    *shm_kitchen;
 extern shm_blackboard_t *shm_blackboard;
 extern shm_cashdesk_t   *shm_cashdesk;
 
-// Global IDs for IPC resources
+// ID globali per le risorse IPC
 extern int q_c2s;
 extern int q_s2c;
 extern int q_fatigue;
 extern int sem_id;
 
 /**
- * @brief Initialize all IPC resources (attach SHM, get semaphores and queues)
+ * @brief Inizializza tutte le risorse IPC (collega SHM, ottiene semafori e code)
  */
 void ipc_init();
 
 /**
- * @brief Cleanup IPC resources (detach SHM)
+ * @brief Pulisce le risorse IPC (scollega SHM)
  */
 void ipc_cleanup();
 
