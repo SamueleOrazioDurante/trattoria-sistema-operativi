@@ -1,11 +1,14 @@
 #include "server_comm.h"
 #include "ipc_manager.h"
+#include "worker.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <pthread.h>
 #include <sys/ipc.h>
 #include <sys/msg.h>
+#include <sys/sem.h>
 #include <errno.h>
 
 static msg_welcome_t welcome_info;
@@ -102,13 +105,25 @@ void server_comm_instance_loop() {
             printf("[COMM] Starting Instance %d (Speed: %d, Strategy: %d, Families: %d)\n",
                    inst->instance_id, inst->speed, inst->strategy, inst->families_n);
 
-            // [DEBUG] Initializing workers for each staff member
+            // --- Start worker threads ---
+            pthread_t threads[MAX_STAFF];
+            worker_args_t wargs[MAX_STAFF];
+
+            worker_start_instance();
+
             for (int i = 0; i < welcome_info.staff_n; i++) {
-                printf("[DEBUG] Initializing worker thread for staff member %d (%s)\n", 
-                       i, welcome_info.staff[i].name);
+                wargs[i].staff_id   = i;
+                wargs[i].strategy   = inst->strategy;
+                wargs[i].staff_info = welcome_info.staff;
+                wargs[i].staff_n    = welcome_info.staff_n;
+
+                if (pthread_create(&threads[i], NULL, worker_thread, &wargs[i]) != 0) {
+                    perror("pthread_create worker");
+                    exit(EXIT_FAILURE);
+                }
             }
 
-            // Wait for INSTANCE_DONE
+            // Wait for INSTANCE_DONE from the server
             msg_instance_done_t done;
             if (msgrcv(q_s2c, &done, sizeof(done) - sizeof(long), MSGTYPE_INSTANCE_DONE, 0) == -1) {
                 perror("msgrcv INSTANCE_DONE");
@@ -118,8 +133,28 @@ void server_comm_instance_loop() {
             printf("[COMM] Instance %d completed.\n", done.instance_id);
             printf("[COMM] Metrics - Total Time: %.2f, Avg Score: %s\n", 
                    done.total_families_time, done.average_families_score_review);
-            
-            printf("[DEBUG] Joining worker threads and resetting blackboard.\n");
+
+            // --- Stop and join worker threads ---
+            worker_stop_instance();
+
+            for (int i = 0; i < welcome_info.staff_n; i++) {
+                pthread_join(threads[i], NULL);
+            }
+
+            // --- Reset blackboard for next instance ---
+            struct sembuf lock  = { .sem_num = SEMIDX_BLACKBOARD, .sem_op = -1, .sem_flg = 0 };
+            struct sembuf unlock = { .sem_num = SEMIDX_BLACKBOARD, .sem_op =  1, .sem_flg = 0 };
+            semop(sem_id, &lock, 1);
+            for (int t = 0; t < shm_blackboard->tables_n; t++) {
+                shm_blackboard->tables[t].waiter  = -1;
+                shm_blackboard->tables[t].cleaner = -1;
+            }
+            shm_blackboard->cook       = -1;
+            shm_blackboard->cashier    = -1;
+            shm_blackboard->dishwasher = -1;
+            semop(sem_id, &unlock, 1);
+
+            printf("[COMM] Worker threads joined and blackboard reset.\n");
         } else if (msg.mtype == MSGTYPE_ERROR) {
             msg_error_t *err = (msg_error_t *)&msg;
             fprintf(stderr, "[ERROR] Server returned error %d: %s\n", err->code, err->message);
