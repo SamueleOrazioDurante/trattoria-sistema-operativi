@@ -10,6 +10,7 @@
 #include <sys/msg.h>
 #include <unistd.h>
 #include <errno.h>
+#include <stdlib.h>
 
 // ---- Flag atomico: TR_TRUE mentre l'istanza corrente è in esecuzione ----
 static atomic_int g_instance_running = 0;
@@ -105,7 +106,8 @@ static void write_assignment(int staff_id, role_t role) {
         if (best == -1) {
             for (int t = 0; t < shm_blackboard->tables_n; t++) {
                 if (shm_blackboard->tables[t].waiter == -1 &&
-                    shm_diningroom->tables[t].state == TABLE_TAKEN) {
+                    shm_diningroom->tables[t].state == TABLE_TAKEN &&
+                    shm_diningroom->tables[t].food_qty == LVL_NONE) {
                     best = t;
                     break;
                 }
@@ -118,19 +120,19 @@ static void write_assignment(int staff_id, role_t role) {
     }
 
     case ROLE_HELPER: {
-        /* Scegli il tavolo libero più sporco che non ha ancora un addetto alla pulizia. */
+        /* Scegli un tavolo libero che ha bisogno di essere pulito e non ha ancora un addetto. */
         int best = -1;
-        level_t worst_dirt = LVL_NONE;
-
+        int candidates[5]; // Assumo massimo 5 tavoli
+        int count = 0;
         for (int t = 0; t < shm_blackboard->tables_n; t++) {
             if (shm_blackboard->tables[t].cleaner == -1 &&
-                shm_diningroom->tables[t].state == TABLE_FREED) {
-                level_t d = shm_diningroom->tables[t].dirt_level;
-                if (d > worst_dirt) {
-                    worst_dirt = d;
-                    best = t;
-                }
+                shm_diningroom->tables[t].state == TABLE_FREED &&
+                shm_diningroom->tables[t].dirt_level > 0) {
+                candidates[count++] = t;
             }
+        }
+        if (count > 0) {
+            best = candidates[rand() % count];
         }
         if (best != -1) {
             shm_blackboard->tables[best].cleaner = staff_id;
@@ -163,11 +165,40 @@ static void blackboard_unlock(void) {
     }
 }
 
-static void dump_blackboard_to_file(const staff_member_t *staff_info, int staff_n) {
-    FILE *f = fopen("blackboard.txt", "w");
+static void dump_info_to_file(const staff_member_t *staff_info, int staff_n, strategy_t strategy) {
+    FILE *f = fopen("info.txt", "w");
     if (!f) return;
 
-    fprintf(f, "--- BLACKBOARD STATUS ---\n");
+    fprintf(f, "Strategia Attuale: %s\n\n", (strategy == STRATEGY_PROFIT) ? "PROFIT" : (strategy == STRATEGY_REPUTATION) ? "REPUTATION" : "SCONOSCIUTA");
+
+
+    fprintf(f, "\n--- ABILITÀ E TRATTI ---\n");
+    fprintf(f, "%-10s | %-9s | %-9s | %-9s | %-9s | %-9s | %-12s | %-12s | %-10s\n", 
+            "Staff", "Cameriere", "Cuoco", "Aiutante", "Cassiere", "Pazienza", "Socievolez", "Profession.", "Resistenza");
+    fprintf(f, "---------------------------------------------------------------------------------------------------------\n");
+    for (int i = 0; i < staff_n; i++) {
+        const char *level_names[] = {"LOW", "MED", "HIGH"};
+        fprintf(f, "%-10s | %-9s | %-9s | %-9s | %-9s | %-9s | %-12s | %-12s | %-10s\n", 
+                staff_info[i].name, 
+                level_names[staff_info[i].skills[0]],
+                level_names[staff_info[i].skills[1]],
+                level_names[staff_info[i].skills[2]],
+                level_names[staff_info[i].skills[3]],
+                level_names[staff_info[i].traits[0]],
+                level_names[staff_info[i].traits[1]],
+                level_names[staff_info[i].traits[2]],
+                level_names[staff_info[i].traits[3]]);
+    }
+
+    fprintf(f, "\n--- STANCHEZZA ---\n");
+    fprintf(f, "%-10s | %-10s\n", "Staff", "Livello");
+    fprintf(f, "-----------------------\n");
+    for (int i = 0; i < staff_n; i++) {
+        level_t fat = state_get_fatigue(i);
+        fprintf(f, "%-10s | %d\n", staff_info[i].name, fat);
+    }
+
+    fprintf(f, "\n--- BLACKBOARD STATUS ---\n");
     fprintf(f, "%-10s | %-15s\n", "Staff", "Ruolo Attuale");
     fprintf(f, "---------------------------\n");
 
@@ -204,6 +235,37 @@ static void dump_blackboard_to_file(const staff_member_t *staff_info, int staff_
     fprintf(f, "Cassiere: %s\n", (shm_blackboard->cashier == -1) ? "Nessuno" : staff_info[shm_blackboard->cashier].name);
     fprintf(f, "Lavapiatti: %s\n", (shm_blackboard->dishwasher == -1) ? "Nessuno" : staff_info[shm_blackboard->dishwasher].name);
 
+    fprintf(f, "\n--- SHARED MEMORY: CASH DESK ---\n");
+    fprintf(f, "Pending Payments: %d\n", shm_cashdesk->pending_payments);
+
+    fprintf(f, "\n--- SHARED MEMORY: KITCHEN ---\n");
+    fprintf(f, "Pending Orders: %d\n", shm_kitchen->pending_orders);
+    fprintf(f, "Clean Plates: %d\n", shm_kitchen->clean_plates);
+    fprintf(f, "Dirty Plates: %d\n", shm_kitchen->dirty_plates);
+    fprintf(f, "Food Ready: ");
+    for (int t = 0; t < shm_kitchen->tables_n; t++) {
+        fprintf(f, "T%d:%s ", t, shm_kitchen->food_ready[t] ? "SI" : "NO");
+    }
+    fprintf(f, "\n");
+
+    fprintf(f, "\n--- SHARED MEMORY: DINING ROOM ---\n");
+    fprintf(f, "%-6s | %-10s | %-10s | %-10s | %-10s\n", "Tavolo", "Stato", "Famiglia", "Sporco", "Cibo Qty");
+    fprintf(f, "---------------------------------------------------------\n");
+    for (int t = 0; t < shm_diningroom->tables_n; t++) {
+        const char *state_str = "Sconosciuto";
+        switch (shm_diningroom->tables[t].state) {
+            case TABLE_EMPTY: state_str = "EMPTY"; break;
+            case TABLE_TAKEN: state_str = "TAKEN"; break;
+            case TABLE_SERVED: state_str = "SERVED"; break;
+            case TABLE_FREED: state_str = "FREED"; break;
+        }
+        fprintf(f, "%-6d | %-10s | %-10s | %-10d | %-10d\n",
+                t, state_str,
+                shm_diningroom->tables[t].surname,
+                shm_diningroom->tables[t].dirt_level,
+                shm_diningroom->tables[t].food_qty);
+    }
+
     fclose(f);
 }
 
@@ -227,20 +289,20 @@ void *worker_thread(void *arg) {
         snapshot_t snap;
         state_take_snapshot(&snap);
 
-        /* 3. Chiedi al modulo strategy il ruolo ottimale */
-        role_t new_role = strategy_decide_role(sid, strat, &snap,
-                                               staff_info, staff_n);
-
-
-
-        /* 4. Scrivi l'assegnazione sulla lavagna (sezione critica) */
+        /* 3. Scrivi l'assegnazione sulla lavagna (sezione critica) */
         blackboard_lock();
+        
+        memcpy(snap.blackboard, shm_blackboard, sizeof(shm_blackboard_t));
+
+        /* 4. Chiedi al modulo strategy il ruolo ottimale */
+        role_t new_role = strategy_decide_role(sid, strat, &snap, staff_info, staff_n);
+        
         clear_assignment(sid);
         write_assignment(sid, new_role);
 
-        extern int g_print_blackboard;
-        if (g_print_blackboard) {
-            dump_blackboard_to_file(staff_info, staff_n);
+        extern int g_print_info;
+        if (g_print_info) {
+            dump_info_to_file(staff_info, staff_n, strat);
         }
 
         blackboard_unlock();

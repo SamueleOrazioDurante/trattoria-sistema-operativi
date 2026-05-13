@@ -1,6 +1,11 @@
 #include "strategy.h"
 #include <stddef.h>
 #include <stdio.h>
+#include <stdlib.h>
+
+#define MAX_STAFF 4 // Assumo massimo 4 staff come da traccia
+
+static int cashier_turns[MAX_STAFF] = {0};
 
 /* ========================================================================= */
 /*  HELPER                                                                   */
@@ -100,7 +105,7 @@ static role_t strategy_profit(int staff_id, const snapshot_t *snapshot, const st
     tr_bool_t blocked = kitchen_blocked(snapshot);
 
     // Persistenza a meno che qualcuno non debba servire cibo o pagare urgentemente, o la cucina sia bloccata
-    role_t persistent = check_persistence(staff_id, snapshot, (food_ready_count > 0 || pending_payments > 2 || blocked));
+    role_t persistent = check_persistence(staff_id, snapshot, (food_ready_count > 0 || pending_payments > 0 || blocked));
     if (persistent != ROLE_NONE) return persistent;
 
     const staff_member_t *me = &staff_info[staff_id];
@@ -121,12 +126,35 @@ static role_t strategy_profit(int staff_id, const snapshot_t *snapshot, const st
     if (food_ready_count > 0) return ROLE_WAITER;
 
     // 2. CUOCO (Critico per il progresso)
+    if (snapshot->kitchen->pending_orders == 0 && 
+        snapshot->kitchen->clean_plates < 3 && 
+        snapshot->kitchen->dirty_plates > 0 &&
+        !common_role_taken_by_other(staff_id, snapshot->blackboard->dishwasher)) {
+        return ROLE_DISHWASHER;
+    }
     if ((pending_orders > 0 || cooking_in_progress(snapshot)) && !common_role_taken_by_other(staff_id, snapshot->blackboard->cook)) {
         if (me->skills[SKILL_COOK] >= PARAM_MEDIUM || snapshot->blackboard->cook == -1) return ROLE_COOK;
     }
 
     // 3. CASSIERE
-    if (pending_payments > 0 && !common_role_taken_by_other(staff_id, snapshot->blackboard->cashier)) return ROLE_CASHIER;
+    if (cashier_turns[staff_id] < 0) {
+        cashier_turns[staff_id]++;
+    }
+
+    int families_paying = 0;
+    for (int i = 0; i < snapshot->diningroom->tables_n; i++) {
+        if (snapshot->diningroom->tables[i].state == TABLE_FREED) families_paying++;
+    }
+    if (staff_id == snapshot->blackboard->cashier) {
+        cashier_turns[staff_id]++;
+    } else {
+        if (cashier_turns[staff_id] >= 0) cashier_turns[staff_id] = 0;
+    }
+    if (cashier_turns[staff_id] > 100 && snapshot->cashdesk->pending_payments == 0 && families_paying > 0) {
+        cashier_turns[staff_id] = -40; // 2 secondi di cooldown
+        return ROLE_NONE;
+    }
+    if (cashier_turns[staff_id] >= 0 && (pending_payments > 0 || families_paying > 0) && !common_role_taken_by_other(staff_id, snapshot->blackboard->cashier)) return ROLE_CASHIER;
 
     // 4. PRENDERE ORDINI
     if (tables_waiting_order > 0) return ROLE_WAITER;
@@ -138,9 +166,9 @@ static role_t strategy_profit(int staff_id, const snapshot_t *snapshot, const st
     if (kitchen_low_on_plates(snapshot) && snapshot->blackboard->dishwasher == -1) return ROLE_DISHWASHER;
 
     // Fallback
+    if (families_paying > 0 && snapshot->blackboard->cashier == -1) return ROLE_CASHIER;
     if (pending_orders > 0 && snapshot->blackboard->cook == -1) return ROLE_COOK;
     if (pending_payments > 0 && snapshot->blackboard->cashier == -1) return ROLE_CASHIER;
-
     return ROLE_NONE;
 }
 
@@ -185,12 +213,35 @@ static role_t strategy_reputation(int staff_id, const snapshot_t *snapshot, cons
     if (food_ready_count > 0) return ROLE_WAITER;
 
     // 2. CUOCO
+    if (snapshot->kitchen->pending_orders == 0 && 
+        snapshot->kitchen->clean_plates < 3 && 
+        snapshot->kitchen->dirty_plates > 0 &&
+        !common_role_taken_by_other(staff_id, snapshot->blackboard->dishwasher)) {
+        return ROLE_DISHWASHER;
+    }
     if ((pending_orders > 0 || cooking_in_progress(snapshot)) && !common_role_taken_by_other(staff_id, snapshot->blackboard->cook)) {
         if (me->skills[SKILL_COOK] >= PARAM_MEDIUM || snapshot->blackboard->cook == -1) return ROLE_COOK;
     }
 
     // 3. CASSIERE (Preferito good contact)
-    if (pending_payments > 0 && !common_role_taken_by_other(staff_id, snapshot->blackboard->cashier)) {
+    if (cashier_turns[staff_id] < 0) {
+        cashier_turns[staff_id]++;
+    }
+
+    int families_paying = 0;
+    for (int i = 0; i < snapshot->diningroom->tables_n; i++) {
+        if (snapshot->diningroom->tables[i].state == TABLE_FREED) families_paying++;
+    }
+    if (staff_id == snapshot->blackboard->cashier) {
+        cashier_turns[staff_id]++;
+    } else {
+        if (cashier_turns[staff_id] >= 0) cashier_turns[staff_id] = 0;
+    }
+    if (cashier_turns[staff_id] > 100 && snapshot->cashdesk->pending_payments == 0 && families_paying > 0) {
+        cashier_turns[staff_id] = -40; // 2 secondi di cooldown
+        return ROLE_NONE;
+    }
+    if (cashier_turns[staff_id] >= 0 && (pending_payments > 0 || families_paying > 0) && !common_role_taken_by_other(staff_id, snapshot->blackboard->cashier)) {
         if (good_contact || snapshot->blackboard->cashier == -1) return ROLE_CASHIER;
     }
 
@@ -209,7 +260,7 @@ static role_t strategy_reputation(int staff_id, const snapshot_t *snapshot, cons
 
     // Fallback
     if (tables_waiting_order > 0) return ROLE_WAITER;
-    if (pending_payments > 0 && snapshot->blackboard->cashier == -1) return ROLE_CASHIER;
+    if ((pending_payments > 0 || families_paying > 0) && snapshot->blackboard->cashier == -1) return ROLE_CASHIER;
     if (pending_orders > 0 && snapshot->blackboard->cook == -1) return ROLE_COOK;
     if (kitchen_low_on_plates(snapshot) && snapshot->blackboard->dishwasher == -1) return ROLE_DISHWASHER;
 
