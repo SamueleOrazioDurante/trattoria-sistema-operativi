@@ -5,7 +5,8 @@ make
 
 if [ "$1" == "--verify" ]; then
     echo "=== RUNNING VERIFY ==="
-    ./trattoria_client --strategy profit | grep -e "Metriche" -e "completata"
+    ./trattoria_client --strategy profit | grep -Ei "metriche|completata"
+
 else
     echo "=== RUNNING PROFIT ==="
     ./trattoria_client --strategy profit | grep "Metriche"
