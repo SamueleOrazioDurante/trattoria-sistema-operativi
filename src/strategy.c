@@ -96,73 +96,57 @@ static role_t check_persistence(int staff_id, const snapshot_t *snapshot, tr_boo
 /* ========================================================================= */
 
 static role_t strategy_profit(int staff_id, const snapshot_t *snapshot, const staff_member_t *staff_info, int staff_n) {
-    if (needs_rotation(staff_id, snapshot, staff_info)) {
-        if (snapshot->staff_fatigue[staff_id] == LVL_HIGH) return ROLE_NONE;
-    }
+    // Solo HIGH fatigue = riposo. A MED continuiamo a lavorare per velocità.
+    if (snapshot->staff_fatigue[staff_id] == LVL_HIGH) return ROLE_NONE;
 
     int pending_payments = snapshot->cashdesk->pending_payments;
     int food_ready_count = count_food_ready(snapshot);
     tr_bool_t blocked = kitchen_blocked(snapshot);
-
-    // Persistenza a meno che qualcuno non debba servire cibo o pagare urgentemente, o la cucina sia bloccata
-    role_t persistent = check_persistence(staff_id, snapshot, (food_ready_count > 0 || pending_payments > 0 || blocked));
-    if (persistent != ROLE_NONE) return persistent;
-
-    const staff_member_t *me = &staff_info[staff_id];
     int pending_orders = snapshot->kitchen->pending_orders;
+
     int tables_waiting_order = 0;
     int tables_dirty = 0;
+    int families_paying = 0;
     
     for (int i = 0; i < snapshot->diningroom->tables_n; i++) {
         table_state_t st = snapshot->diningroom->tables[i].state;
         if (st == TABLE_TAKEN && snapshot->diningroom->tables[i].food_qty == LVL_NONE) tables_waiting_order++;
         else if (st == TABLE_FREED && snapshot->blackboard->tables[i].cleaner == -1) tables_dirty++;
+        if (st == TABLE_FREED) families_paying++;
     }
 
-    // 0. LAVAPIATTI se bloccato
+    // 0. LAVAPIATTI se cucina bloccata (CRITICO - blocca tutto il pipeline)
     if (blocked && !common_role_taken_by_other(staff_id, snapshot->blackboard->dishwasher)) return ROLE_DISHWASHER;
 
-    // 1. SERVIRE CIBO
+    // 1. SERVIRE CIBO (sblocca tavolo → famiglia mangia → paga → se ne va)
     if (food_ready_count > 0) return ROLE_WAITER;
 
-    // 2. CUOCO (Critico per il progresso)
-    if (snapshot->kitchen->pending_orders == 0 && 
-        snapshot->kitchen->clean_plates < 3 && 
+    // 2. LAVAPIATTI PREVENTIVO prima che si blocchi la cucina
+    if (snapshot->kitchen->clean_plates < 2 && 
         snapshot->kitchen->dirty_plates > 0 &&
         !common_role_taken_by_other(staff_id, snapshot->blackboard->dishwasher)) {
         return ROLE_DISHWASHER;
     }
-    if ((pending_orders > 0 || cooking_in_progress(snapshot)) && !common_role_taken_by_other(staff_id, snapshot->blackboard->cook)) {
-        if (me->skills[SKILL_COOK] >= PARAM_MEDIUM || snapshot->blackboard->cook == -1) return ROLE_COOK;
+
+    // 3. CUOCO - il cibo deve essere pronto il prima possibile
+    if ((pending_orders > 0 || cooking_in_progress(snapshot)) && 
+        !common_role_taken_by_other(staff_id, snapshot->blackboard->cook)) {
+        return ROLE_COOK;
     }
 
-    // 3. CASSIERE
-    if (cashier_turns[staff_id] < 0) {
-        cashier_turns[staff_id]++;
+    // 4. CASSIERE - processare pagamenti subito (nessun cooldown!)
+    if ((pending_payments > 0 || families_paying > 0) && 
+        !common_role_taken_by_other(staff_id, snapshot->blackboard->cashier)) {
+        return ROLE_CASHIER;
     }
 
-    int families_paying = 0;
-    for (int i = 0; i < snapshot->diningroom->tables_n; i++) {
-        if (snapshot->diningroom->tables[i].state == TABLE_FREED) families_paying++;
-    }
-    if (staff_id == snapshot->blackboard->cashier) {
-        cashier_turns[staff_id]++;
-    } else {
-        if (cashier_turns[staff_id] >= 0) cashier_turns[staff_id] = 0;
-    }
-    if (cashier_turns[staff_id] > 100 && snapshot->cashdesk->pending_payments == 0 && families_paying > 0) {
-        cashier_turns[staff_id] = -40; // 2 secondi di cooldown
-        return ROLE_NONE;
-    }
-    if (cashier_turns[staff_id] >= 0 && (pending_payments > 0 || families_paying > 0) && !common_role_taken_by_other(staff_id, snapshot->blackboard->cashier)) return ROLE_CASHIER;
-
-    // 4. PRENDERE ORDINI
+    // 5. PRENDERE ORDINI
     if (tables_waiting_order > 0) return ROLE_WAITER;
 
-    // 5. PULIRE TAVOLI
+    // 6. PULIRE TAVOLI (necessario per far entrare nuove famiglie)
     if (tables_dirty > 0) return ROLE_HELPER;
 
-    // 6. LAVAPIATTI PREVENTIVO
+    // 7. LAVAPIATTI PREVENTIVO (meno urgente)
     if (kitchen_low_on_plates(snapshot) && snapshot->blackboard->dishwasher == -1) return ROLE_DISHWASHER;
 
     // Fallback
