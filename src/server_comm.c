@@ -85,11 +85,12 @@ void server_comm_instance_loop() {
             long mtype;
             msg_instance_t instance;
             msg_end_t end;
+            msg_error_t error;
         } msg;
 
         printf("[COMM] In attesa del prossimo comando dal server...\n");
 
-        if (msgrcv(q_s2c, &msg, sizeof(msg_instance_t) - sizeof(long), 0, 0) == -1) {
+        if (msgrcv(q_s2c, &msg, sizeof(msg) - sizeof(long), 0, 0) == -1) {
             perror("msgrcv instance/end");
             exit(EXIT_FAILURE);
         }
