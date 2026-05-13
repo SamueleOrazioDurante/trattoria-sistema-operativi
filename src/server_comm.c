@@ -132,8 +132,9 @@ void server_comm_instance_loop() {
             }
 
             printf("[COMM] Istanza %d completata.\n", done.instance_id);
-            printf("[COMM] Metriche - Tempo Totale: %.2f, Punteggio Medio: %s\n", 
-                   done.total_families_time, done.average_families_score_review);
+            printf("[COMM] Metriche - Tempo Totale: %.2f, Punteggio Medio: %s | Strategia: %s\n", 
+                   done.total_families_time, done.average_families_score_review, 
+                   (inst->strategy == STRATEGY_PROFIT) ? "PROFIT" : "REPUTATION");
 
             // --- Ferma e attendi i thread worker ---
             worker_stop_instance();
