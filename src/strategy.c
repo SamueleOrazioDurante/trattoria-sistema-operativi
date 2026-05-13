@@ -53,7 +53,8 @@ static int count_food_ready(const snapshot_t *snapshot) {
     int count = 0;
     for (int i = 0; i < snapshot->diningroom->tables_n; i++) {
         if (snapshot->kitchen->food_ready[i] == TR_TRUE &&
-            snapshot->blackboard->tables[i].waiter == -1) {
+            snapshot->blackboard->tables[i].waiter == -1 &&
+            snapshot->diningroom->tables[i].state != TABLE_SERVED) {
             count++;
         }
     }
@@ -169,12 +170,26 @@ static role_t strategy_profit(int staff_id, const snapshot_t *snapshot, const st
 /* ========================================================================= */
 
 static role_t strategy_reputation(int staff_id, const snapshot_t *snapshot, const staff_member_t *staff_info, int staff_n) {
-    if (needs_rotation(staff_id, snapshot, staff_info)) {
-        if (snapshot->staff_fatigue[staff_id] == LVL_HIGH) return ROLE_NONE;
+
+    // Sicurezza: se sei cameriere di un tavolo già servito, molla il ruolo!
+    for (int i = 0; i < snapshot->diningroom->tables_n; i++) {
+        if (snapshot->blackboard->tables[i].waiter == staff_id &&
+            snapshot->diningroom->tables[i].state == TABLE_SERVED) {
+            return ROLE_NONE;
+        }
     }
 
     int pending_payments = snapshot->cashdesk->pending_payments;
-    int food_ready_count = count_food_ready(snapshot);
+    
+    int food_ready_count = 0;
+    for (int i = 0; i < snapshot->diningroom->tables_n; i++) {
+        if (snapshot->kitchen->food_ready[i] == TR_TRUE &&
+            (snapshot->blackboard->tables[i].waiter == -1 || snapshot->blackboard->tables[i].waiter == staff_id) &&
+            snapshot->diningroom->tables[i].state != TABLE_SERVED) {
+            food_ready_count++;
+        }
+    }
+
     int pending_orders = snapshot->kitchen->pending_orders;
     
     int families_paying = 0;

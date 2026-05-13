@@ -98,7 +98,8 @@ static void write_assignment(int staff_id, role_t role) {
         /* 1. Tavoli con cibo pronto e nessun cameriere assegnato */
         for (int t = 0; t < shm_blackboard->tables_n; t++) {
             if (shm_blackboard->tables[t].waiter == -1 &&
-                shm_kitchen->food_ready[t] == TR_TRUE) {
+                shm_kitchen->food_ready[t] == TR_TRUE &&
+                shm_diningroom->tables[t].state != TABLE_SERVED) {
                 best = t;
                 break;
             }
