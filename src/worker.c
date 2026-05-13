@@ -163,6 +163,50 @@ static void blackboard_unlock(void) {
     }
 }
 
+static void dump_blackboard_to_file(const staff_member_t *staff_info, int staff_n) {
+    FILE *f = fopen("blackboard.txt", "w");
+    if (!f) return;
+
+    fprintf(f, "--- BLACKBOARD STATUS ---\n");
+    fprintf(f, "%-10s | %-15s\n", "Staff", "Ruolo Attuale");
+    fprintf(f, "---------------------------\n");
+
+    for (int i = 0; i < staff_n; i++) {
+        const char *name = staff_info[i].name;
+        const char *role = "Riposo";
+        char details[64] = "";
+
+        if (shm_blackboard->cook == i) {
+            role = "Cuoco";
+        } else if (shm_blackboard->cashier == i) {
+            role = "Cassiere";
+        } else if (shm_blackboard->dishwasher == i) {
+            role = "Lavapiatti";
+        } else {
+            for (int t = 0; t < shm_blackboard->tables_n; t++) {
+                if (shm_blackboard->tables[t].waiter == i) {
+                    role = "Cameriere";
+                    snprintf(details, sizeof(details), " (Tavolo %d)", t);
+                    break;
+                }
+                if (shm_blackboard->tables[t].cleaner == i) {
+                    role = "Aiutante";
+                    snprintf(details, sizeof(details), " (Tavolo %d)", t);
+                    break;
+                }
+            }
+        }
+        fprintf(f, "%-10s | %s%s\n", name, role, details);
+    }
+
+    fprintf(f, "\n--- Ruoli Unici ---\n");
+    fprintf(f, "Cuoco: %s\n", (shm_blackboard->cook == -1) ? "Nessuno" : staff_info[shm_blackboard->cook].name);
+    fprintf(f, "Cassiere: %s\n", (shm_blackboard->cashier == -1) ? "Nessuno" : staff_info[shm_blackboard->cashier].name);
+    fprintf(f, "Lavapiatti: %s\n", (shm_blackboard->dishwasher == -1) ? "Nessuno" : staff_info[shm_blackboard->dishwasher].name);
+
+    fclose(f);
+}
+
 /* ---------- entry point del thread -------------------------------------------- */
 
 void *worker_thread(void *arg) {
@@ -187,10 +231,18 @@ void *worker_thread(void *arg) {
         role_t new_role = strategy_decide_role(sid, strat, &snap,
                                                staff_info, staff_n);
 
+
+
         /* 4. Scrivi l'assegnazione sulla lavagna (sezione critica) */
         blackboard_lock();
         clear_assignment(sid);
         write_assignment(sid, new_role);
+
+        extern int g_print_blackboard;
+        if (g_print_blackboard) {
+            dump_blackboard_to_file(staff_info, staff_n);
+        }
+
         blackboard_unlock();
 
         /* 5. Sleep per evitare di saturare la CPU */

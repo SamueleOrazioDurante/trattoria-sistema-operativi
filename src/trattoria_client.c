@@ -5,8 +5,10 @@
 #include <stdlib.h>
 #include <string.h>
 
+int g_print_blackboard = 0;
+
 void print_usage(const char *progname) {
-    printf("Usage: %s [--strategy <profit|reputation>]\n", progname);
+    printf("Usage: %s [--strategy <profit|reputation>] [--print-blackboard]\n", progname);
 }
 
 int main(int argc, char *argv[]) {
@@ -31,6 +33,8 @@ int main(int argc, char *argv[]) {
                 print_usage(argv[0]);
                 return EXIT_FAILURE;
             }
+        } else if (strcmp(argv[i], "--print-blackboard") == 0) {
+            g_print_blackboard = 1;
         } else {
             fprintf(stderr, "Error: Unknown argument '%s'\n", argv[i]);
             print_usage(argv[0]);

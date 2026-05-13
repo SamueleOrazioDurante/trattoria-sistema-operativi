@@ -99,8 +99,8 @@ static role_t strategy_profit(int staff_id, const snapshot_t *snapshot, const st
     int food_ready_count = count_food_ready(snapshot);
     tr_bool_t blocked = kitchen_blocked(snapshot);
 
-    // Persistenza a meno che qualcuno non debba servire cibo o pagare urgentemente
-    role_t persistent = check_persistence(staff_id, snapshot, (food_ready_count > 0 || pending_payments > 2));
+    // Persistenza a meno che qualcuno non debba servire cibo o pagare urgentemente, o la cucina sia bloccata
+    role_t persistent = check_persistence(staff_id, snapshot, (food_ready_count > 0 || pending_payments > 2 || blocked));
     if (persistent != ROLE_NONE) return persistent;
 
     const staff_member_t *me = &staff_info[staff_id];
@@ -111,7 +111,7 @@ static role_t strategy_profit(int staff_id, const snapshot_t *snapshot, const st
     for (int i = 0; i < snapshot->diningroom->tables_n; i++) {
         table_state_t st = snapshot->diningroom->tables[i].state;
         if (st == TABLE_TAKEN && snapshot->diningroom->tables[i].food_qty == LVL_NONE) tables_waiting_order++;
-        else if (st == TABLE_FREED) tables_dirty++;
+        else if (st == TABLE_FREED && snapshot->blackboard->tables[i].cleaner == -1) tables_dirty++;
     }
 
     // 0. LAVAPIATTI se bloccato
@@ -162,8 +162,8 @@ static role_t strategy_reputation(int staff_id, const snapshot_t *snapshot, cons
     int food_ready_count = count_food_ready(snapshot);
     tr_bool_t blocked = kitchen_blocked(snapshot);
 
-    // Logica di persistenza (non persistere se siamo good contact e qualcuno deve pagare/ordinare)
-    role_t persistent = check_persistence(staff_id, snapshot, (good_contact && (pending_payments > 0 || food_ready_count > 0)));
+    // Logica di persistenza (non persistere se siamo good contact e qualcuno deve pagare/ordinare, o se bloccato)
+    role_t persistent = check_persistence(staff_id, snapshot, (good_contact && (pending_payments > 0 || food_ready_count > 0)) || blocked);
     if (persistent != ROLE_NONE) return persistent;
 
     int pending_orders = snapshot->kitchen->pending_orders;
@@ -173,7 +173,7 @@ static role_t strategy_reputation(int staff_id, const snapshot_t *snapshot, cons
     for (int i = 0; i < snapshot->diningroom->tables_n; i++) {
         table_state_t st = snapshot->diningroom->tables[i].state;
         if (st == TABLE_TAKEN && snapshot->diningroom->tables[i].food_qty == LVL_NONE) tables_waiting_order++;
-        else if (st == TABLE_FREED) tables_dirty++;
+        else if (st == TABLE_FREED && snapshot->blackboard->tables[i].cleaner == -1) tables_dirty++;
     }
 
     // 0. LAVAPIATTI se bloccato
