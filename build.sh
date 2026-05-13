@@ -1,5 +1,10 @@
-#/bin/bash
+#!/bin/bash
 cd build
 cmake ..
 make
-./trattoria_client --strategy profit --print-blackboard
+
+echo "=== RUNNING PROFIT ==="
+./trattoria_client --strategy profit | grep "Metriche"
+
+echo "=== RUNNING REPUTATION ==="
+./trattoria_client --strategy reputation | grep "Metriche"
