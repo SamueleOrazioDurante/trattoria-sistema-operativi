@@ -10,6 +10,11 @@
  * tracciato localmente dal client (come la stanchezza).
  */
 typedef struct {
+    shm_diningroom_t diningroom_data;
+    shm_kitchen_t kitchen_data;
+    shm_blackboard_t blackboard_data;
+    shm_cashdesk_t cashdesk_data;
+
     const shm_diningroom_t *diningroom;
     const shm_kitchen_t *kitchen;
     const shm_blackboard_t *blackboard;

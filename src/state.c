@@ -20,11 +20,17 @@ void state_reset_fatigue(void) {
 }
 
 void state_take_snapshot(snapshot_t *snap) {
-    /* Punta direttamente alle regioni SHM live (sola lettura per il client). */
-    snap->diningroom = shm_diningroom;
-    snap->kitchen    = shm_kitchen;
-    snap->blackboard = shm_blackboard;
-    snap->cashdesk   = shm_cashdesk;
+    /* Copia i dati dalle memorie condivise nello snapshot */
+    snap->diningroom_data = *shm_diningroom;
+    snap->kitchen_data    = *shm_kitchen;
+    snap->blackboard_data = *shm_blackboard;
+    snap->cashdesk_data   = *shm_cashdesk;
+
+    /* Imposta i puntatori alle copie interne. */
+    snap->diningroom = &snap->diningroom_data;
+    snap->kitchen    = &snap->kitchen_data;
+    snap->blackboard = &snap->blackboard_data;
+    snap->cashdesk   = &snap->cashdesk_data;
 
     /* Copia i livelli di stanchezza tracciati localmente nello snapshot. */
     memcpy(snap->staff_fatigue, g_fatigue, sizeof(g_fatigue));
