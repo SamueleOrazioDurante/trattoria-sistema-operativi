@@ -16,7 +16,8 @@
 static atomic_int g_instance_running = 0;
 
 // ---- Intervallo di polling (microsecondi) ----
-#define WORKER_POLL_INTERVAL_US  50000   /* 50 ms */
+#define REPUTATION_POLL_INTERVAL_US  50000   /* 50 ms */
+#define PROFIT_POLL_INTERVAL_US 20000 /* 20 ms */
 
 /* ---------- helper pubblici ------------------------------------------------ */
 
@@ -308,7 +309,7 @@ void *worker_thread(void *arg) {
         blackboard_unlock();
 
         /* 5. Sleep per evitare di saturare la CPU */
-        usleep(WORKER_POLL_INTERVAL_US);
+        usleep(strat == STRATEGY_PROFIT ? PROFIT_POLL_INTERVAL_US : REPUTATION_POLL_INTERVAL_US);
     }
 
     /* Pulisci la propria assegnazione prima di uscire */

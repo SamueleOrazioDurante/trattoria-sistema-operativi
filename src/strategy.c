@@ -104,6 +104,14 @@ static role_t strategy_profit(int staff_id, const snapshot_t *snapshot, const st
     tr_bool_t blocked = kitchen_blocked(snapshot);
     int pending_orders = snapshot->kitchen->pending_orders;
 
+    // Persistenza cuoco: se stai cucinando e c'è ancora lavoro, finisci!
+    // Ma interrompi se c'è cibo pronto da servire o cucina bloccata.
+    if (snapshot->blackboard->cook == staff_id && !blocked && food_ready_count == 0) {
+        if (pending_orders > 0 || cooking_in_progress(snapshot)) {
+            return ROLE_COOK;
+        }
+    }
+
     int tables_waiting_order = 0;
     int tables_dirty = 0;
     int families_paying = 0;
