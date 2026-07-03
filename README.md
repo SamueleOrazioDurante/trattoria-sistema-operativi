@@ -1,6 +1,6 @@
 # trattoria-sistema-operativi
 
-Relazione: [relazione.md](relazione.md)
+Relazione: [markdown](relazione.md) [pdf](relazione.pdf)
 
 ## Guida alla compilazione
 
