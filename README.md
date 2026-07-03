@@ -1,5 +1,7 @@
 # trattoria-sistema-operativi
 
+Relazione: [relazione.md](relazione.md)
+
 ## Guida alla compilazione
 
 Il progetto utilizza **CMake**. Segui questi passaggi per compilare il client:
