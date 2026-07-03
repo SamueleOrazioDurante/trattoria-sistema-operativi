@@ -15,11 +15,13 @@ Il personale assegnato alla trattoria presenta un mix eterogeneo di abilità e t
 
 ## 2. Osservazioni sulle caratteristiche delle famiglie
 
-Le famiglie che frequentano la trattoria mostrano comportamenti che influenzano pesantemente le metriche:
+L'analisi dei log generati durante le simulazioni ha permesso di isolare tre macro-comportamenti delle famiglie clienti, i quali influenzano pesantemente le metriche di _Profitto_ e _Reputazione_. Di seguito le osservazioni strutturate:
 
-- **Volume degli ordini**: Molte famiglie (es. Rossi, Russo, Ferrari) tendono a fare ordini "Large", mettendo sotto pressione la cucina e esaurendo rapidamente le scorte di piatti puliti.
-- **Sensibilità all'attesa**: I log mostrano che i tempi di attesa per il cibo e per il pagamento sono i fattori critici. Recensioni negative (es. "wait='negative'") compaiono non appena il personale viene distratto da troppi ruoli contemporaneamente.
-- **Importanza della cortesia**: Anche con tempi di attesa lunghi, un personale con alta pazienza (Giulia, Gabriele, Beatrice) riesce a mitigare parzialmente il danno alla reputazione (es. "courtesy='positive'").
+| Vettore Comportamentale                    | Impatto sul Sistema (Simulazione)                                                                                                                                                                                               | Contromisura Adottata nel Client                                                                                                                                       |
+| :----------------------------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | :--------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Volume degli Ordini (Dimensione Pasto)** | Numerose famiglie (es. _Rossi, Ferrari_) generano frequentemente ordini di dimensione `LARGE`. Questo satura rapidamente la coda ordini e prosciuga lo stack dei piatti puliti (`clean_plates`).                                | Implementazione di un trigger preventivo sul ruolo `ROLE_DISHWASHER` per evitare il blocco architetturale della cucina.                                                |
+| **Sensibilità ai Tempi di Attesa**         | La tolleranza all'attesa è limitata. Il ritardo nella consegna del cibo o nel processamento del pagamento alla cassa genera rapidamente feedback negativi (`wait='negative'`) che affossano il punteggio finale.                | Nella variante _Profit_, il ruolo `ROLE_CASHIER` e il `ROLE_WAITER` vengono attivati immediatamente con un approccio _greedy_ per massimizzare il turnover dei tavoli. |
+| **Sensibilità alla Cortesia**              | L'algoritmo di valutazione del server è compensativo: un servizio erogato da personale con tratto _Pazienza_ e _Professionalità_ elevato (es. Gabriele) mitiga le penalità di un'attesa prolungata (es. `courtesy='positive'`). | Nella variante _Reputation_, si applica il _pinning_ esclusivo del personale migliore ai ruoli di contatto, relegando gli altri in cucina.                             |
 
 ## 3. Scelte nella progettazione della strategia
 
@@ -32,13 +34,13 @@ La logica decisionale (modulo `strategy.c`) implementa un'architettura duale per
 
 ## 4. Criteri per il soddisfacimento dei vincoli
 
-Il client ha superato i test di validazione automatica (`--verify`) raggiungendo un punteggio equivalente di **32.5/30 (12/14 test passati)**. Di seguito i dettagli implementativi e i relativi risultati metrici:
+I vincoli di progetto sono stati approcciati combinando controlli di stato continui e rotazioni, in modo da soddisfare rigorosamente i tre requisiti fondamentali richiesti dalla simulazione:
 
-| Vincolo Richiesto                                               | Metodologia di Risoluzione (Implementazione)                                                                                                                                                      | Risultato (Autograder)                                                  |
-| :-------------------------------------------------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | :---------------------------------------------------------------------- |
-| **Tempo di completamento**<br>`time(profit) < time(reputation)` | Identificazione proattiva dei colli di bottiglia (es. attivazione preventiva del lavapiatti per non fermare il _cook_). Assegnazione puramente avida (_greedy_).                                  | Rispettato nel **100%** delle istanze (fino a 24 famiglie concorrenti). |
-| **Reputazione maggiore**<br>`score(reputation) > score(profit)` | Isolamento dei worker ad alto potenziale di contatto (Pazienza/Professionalità `HIGH`) esclusivamente nei ruoli operativi di Cameriere e Cassiere.                                                | Rispettato nel **100%** delle istanze valutate.                         |
-| **Gestione Stanchezza**<br>`Nessun worker HIGH`                 | Lettura periodica della coda messaggi (`msgrcv`). Se `livello == HIGH`, fallback forzato a `ROLE_NONE`. Se `livello == MEDIUM` su worker fragili (es. Beatrice), trigger di rotazione preventiva. | Rispettato nel **100%** delle istanze a carico standard (12 famiglie).  |
+| Vincolo Richiesto                                                      | Metodologia di Risoluzione (Implementazione)                                                                                                                                                      |
+| :--------------------------------------------------------------------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **Tempo di completamento minore**<br>`time(profit) < time(reputation)` | Identificazione proattiva dei colli di bottiglia (es. attivazione preventiva del lavapiatti per non fermare il _cook_). Assegnazione puramente avida (_greedy_) nella strategia Profit.           |
+| **Reputazione maggiore**<br>`score(reputation) > score(profit)`        | Isolamento dei worker ad alto potenziale di contatto (Pazienza/Professionalità `HIGH`) esclusivamente nei ruoli operativi di Cameriere e Cassiere durante la strategia Reputation.                |
+| **Assenza di stanchezza alta**<br>`Nessun worker HIGH`                 | Lettura periodica della coda messaggi (`msgrcv`). Se `livello == HIGH`, fallback forzato a `ROLE_NONE`. Se `livello == MEDIUM` su worker fragili (es. Beatrice), trigger di rotazione preventiva. |
 
 ## 5. Problematiche incontrate e soluzioni adottate
 
