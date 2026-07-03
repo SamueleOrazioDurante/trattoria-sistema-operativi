@@ -1,5 +1,59 @@
 # trattoria-sistema-operativi
 
+## Guida alla compilazione
+
+Il progetto utilizza **CMake**. Segui questi passaggi per compilare il client:
+
+1. **Crea una directory per la build:**
+
+   ```bash
+   mkdir build
+   cd build
+   ```
+
+2. **Genera i file di build e compila il progetto:**
+
+   ```bash
+   cmake ..
+   make
+   ```
+
+L'eseguibile generato si chiamerà `trattoria_client`.
+
+---
+
+## Come eseguire
+
+Per testare il client, è necessario avere il server fornito dal docente in esecuzione già presente nella repository ed aggiornato all'ultima versione.
+
+1. **Avvia il server** (in un terminale separato):
+
+   ```bash
+   ./trattoria_server_Linux --speed 2
+   ```
+
+2. **Avvia il client:**
+   ```bash
+   ./trattoria_client --strategy profit
+   ```
+
+### Eseguire il progetto per la verifica
+
+Per eseguire il test automatico, apri due terminali separati:
+
+1. Nel **primo terminale**, avvia il server:
+
+   ```bash
+   ./server/trattoria_server --verify
+   ```
+
+2. Nel **secondo terminale**, esegui lo script di build con il flag `--verify`, che andrà automaticamente a buildare ed eseguire il client:
+   ```bash
+   ./build.sh --verify
+   ```
+
+---
+
 ## Struttura file
 
 ```
@@ -91,60 +145,6 @@ src/
 5. Logica di osservazione delle famiglie:
    - Dopo ordine → osservare `food_qty` per stimare carico cucina
    - Dopo consumo → osservare `dirt_level` per pianificare pulizia
-
-## Guida alla compilazione
-
-Il progetto utilizza **CMake**. Segui questi passaggi per compilare il client:
-
-1. **Crea una directory per la build:**
-
-   ```bash
-   mkdir build
-   cd build
-   ```
-
-2. **Genera i file di build:**
-
-   ```bash
-   cmake ..
-   ```
-
-3. **Compila il progetto:**
-   ```bash
-   make
-   ```
-
-L'eseguibile generato si chiamerà `trattoria_client`.
-
----
-
-## Come eseguire
-
-Per testare il client, è necessario avere il server fornito dal docente in esecuzione.
-
-1. **Avvia il server** (in un terminale separato):
-
-   ```bash
-   ./trattoria_server_Linux --speed 2
-   ```
-
-2. **Avvia il client:**
-   ```bash
-   ./trattoria_client --strategy profit
-   ```
-
-### Modalità Verifica
-
-Per eseguire il test automatico su 100 istanze:
-
-1. Avvia il server con il flag `--verify`:
-   ```bash
-   ./trattoria_server_Linux --verify
-   ```
-2. Avvia il client (la strategia verrà ignorata e gestita dal server):
-   ```bash
-   ./trattoria_client
-   ```
 
 ---
 
